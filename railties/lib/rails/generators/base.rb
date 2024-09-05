@@ -276,11 +276,24 @@ module Rails
             last = extract_last_module(nesting)
 
             if last && last.const_defined?(last_name.camelize, false)
-              raise Error, "The name '#{class_name}' is either already used in your application " \
-                           "or reserved by Ruby on Rails. Please choose an alternative or use --skip-collision-check "  \
-                           "or --force to skip this check and run this generator again."
+              source_location, = Object.const_source_location(class_name)
+              collision_cause =
+                if defined_in_app?(source_location)
+                  "already used in your application in the file at " \
+                    "#{source_location.delete_prefix(Rails.root.to_s)[1..]}"
+                else
+                  "reserved by Ruby on Rails"
+                end
+
+              raise Error, "The name '#{class_name}' is #{collision_cause}. " \
+                           "Please choose an alternative or use --skip-collision-check or " \
+                           "--force to skip this check and run this generator again."
             end
           end
+        end
+
+        def defined_in_app?(source_location)
+          source_location.start_with?(Rails.root.to_s)
         end
 
         # Takes in an array of nested modules and extracts the last module
